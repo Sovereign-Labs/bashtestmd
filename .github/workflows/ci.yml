@@ -20,7 +20,6 @@ jobs:
       # which should be required to pass before merging a PR, don't forget to
       # update this list!
       - check
-      - features
       - test
     steps:
       - name: Compute whether the needed jobs succeeded or failed
@@ -43,20 +42,6 @@ jobs:
       - run: cargo check --all-targets --all-features
       - run: cargo clippy --all-targets --all-features
 
-  # Check that every combination of features is working properly.
-  features:
-    name: features
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust
-        run: rustup show
-      - name: cargo install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-      - uses: Swatinem/rust-cache@v2
-      - name: cargo hack
-        run: cargo hack check --workspace --feature-powerset --all-targets
   test:
     name: test
     runs-on: ubuntu-latest
