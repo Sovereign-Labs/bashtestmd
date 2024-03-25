@@ -155,7 +155,7 @@ struct CodeBlockTags {
 }
 
 impl CodeBlockTags {
-    fn parse(code_block: &mdast::Code) -> Self {
+    fn parse(code_block: &mdast::Code, only_tag: &str) -> Self {
         let langs: Vec<String> = code_block
             .lang
             .as_deref()
@@ -171,7 +171,7 @@ impl CodeBlockTags {
             wait_until: None,
         };
 
-        for lang in langs {
+        for (idx, lang) in langs.into_iter().enumerate() {
             if lang == "bashtestmd:long-running" {
                 tags.long_running = true;
             } else if lang == "bashtestmd:compare-output" {
@@ -185,7 +185,11 @@ impl CodeBlockTags {
                 let wait_until = lang.split_once('=').unwrap().1.to_string();
                 tags.wait_until = Some(wait_until);
             } else {
-                println!("Unknown bashtestmd tag, ignoring: {}", lang);
+                // Don't warn on the first `lang` tag of if the tag is the one marking blocks for bashtestmd to compile
+                // This ensures that (i.e. ```rust,test-ci```) should not generate warnings.
+                if idx != 0 && lang != only_tag {
+                    println!("Unknown bashtestmd tag, ignoring: {}", lang);
+                }
             }
         }
 
@@ -210,7 +214,8 @@ fn convert_code_blocks_into_commands(
         {
             continue;
         }
-        let tags = CodeBlockTags::parse(&code_block);
+        let mut block_contains_command = false;
+        let tags = CodeBlockTags::parse(&code_block, only_tag);
 
         let mut cmd: Option<String> = None;
         let mut output = String::new();
@@ -221,10 +226,18 @@ fn convert_code_blocks_into_commands(
                     commands.push(Command::new(&cmd));
                 }
                 cmd = Some(cmd_string.to_string());
+                block_contains_command = true;
             } else {
                 output.push_str(line);
                 output.push('\n');
             }
+        }
+        if !block_contains_command {
+            println!(
+                "Warning: could not find command in block`:\n```\n{}\n```",
+                &code_block.value
+            );
+            println!("^^^^^ remove the tag {only_tag} from the block or add a command beginning with `{PROMPT}` to fix this warning");
         }
         if let Some(cmd) = cmd {
             let mut cmd = Command::new(&cmd);
