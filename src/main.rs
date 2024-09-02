@@ -80,6 +80,7 @@ impl Command {
                           echo -n "."
                           sleep 5
                         done
+                        echo ""
                         "#
                     ),
                     self.cmd,
