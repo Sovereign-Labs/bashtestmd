@@ -64,17 +64,17 @@ impl Command {
                     w,
                     indoc!(
                         r#"
-                        long_running_output=$(mktemp)
-                        export BASHTESTMD_LONG_RUNNING_OUTPUT=$long_running_output
-                        {} &> $long_running_output &
+                        output=$(mktemp)
+                        export BASHTESTMD_LONG_RUNNING_OUTPUT=$output
+                        {} &> $output &
                         background_process_pid=$!
-                        echo "Waiting for process with PID: $background_process_pid to have a match in $long_running_output"
-                        until grep -q -i {} $long_running_output
+                        echo "Waiting for process with PID: $background_process_pid to have a match in $output"
+                        until grep -q -i {} $output
                         do       
                           if ! ps $background_process_pid > /dev/null 
                           then
                             echo "The background process died, output:" >&2
-                            cat $long_running_output
+                            cat $output
                             exit 1
                           fi
                           echo -n "."
