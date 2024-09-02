@@ -61,7 +61,7 @@ impl Command {
         writeln!(
             w,
             indoc!(
-            r#"
+                r#"
             check_and_output_long_running_output() {{
                 if [[ -n "$BASHTESTMD_LONG_RUNNING_OUTPUT" && -f "$BASHTESTMD_LONG_RUNNING_OUTPUT" ]]; then
                     echo "Output of the long running task:"
@@ -69,7 +69,8 @@ impl Command {
                 fi
             }}
             "#
-            ))?;
+            )
+        )?;
 
         if self.long_running {
             if let Some(wait_until) = &self.wait_until {
