@@ -58,20 +58,6 @@ impl Command {
             shell_escape::escape(format!("Running: '{}'", self.cmd).into())
         )?;
 
-        writeln!(
-            w,
-            indoc!(
-                r#"
-            check_and_output_long_running_output() {{
-                if [[ -n "$BASHTESTMD_LONG_RUNNING_OUTPUT" && -f "$BASHTESTMD_LONG_RUNNING_OUTPUT" ]]; then
-                    echo "Output of the long running task:"
-                    cat "$BASHTESTMD_LONG_RUNNING_OUTPUT"
-                fi
-            }}
-            "#
-            )
-        )?;
-
         if self.long_running {
             if let Some(wait_until) = &self.wait_until {
                 writeln!(
@@ -82,8 +68,8 @@ impl Command {
                         export BASHTESTMD_LONG_RUNNING_OUTPUT=$long_running_output
                         {} &> $long_running_output &
                         background_process_pid=$!
-                        echo "Waiting for process with PID: $background_process_pid"
-                        until grep -q -i {} $output
+                        echo "Waiting for process with PID: $background_process_pid to have a match in $long_running_output"
+                        until grep -q -i {} $long_running_output
                         do       
                           if ! ps $background_process_pid > /dev/null 
                           then
@@ -121,6 +107,7 @@ impl Command {
                         echo "'$expected' not found in text:"
                         echo "'$output'"
                         check_and_output_long_running_output
+                        echo "=========== END OF THE LONG RUNNING OUTPUT. Terminating..."
                         exit 1
                     fi
                     "#
@@ -157,6 +144,19 @@ fn compile_commands_into_bash(cmds: Vec<Command>) -> String {
     // Shebang.
     writeln!(&mut script, "#!/usr/bin/env bash").unwrap();
     writeln!(&mut script, r#"trap 'jobs -p | xargs -r kill' EXIT"#).unwrap();
+    writeln!(
+        &mut script,
+        indoc!(
+        r#"
+        check_and_output_long_running_output() {{
+            if [[ -n "$BASHTESTMD_LONG_RUNNING_OUTPUT" && -f "$BASHTESTMD_LONG_RUNNING_OUTPUT" ]]; then
+                echo "Output of the long running task:"
+                cat "$BASHTESTMD_LONG_RUNNING_OUTPUT"
+            fi
+        }}
+        "#
+        )
+    ).unwrap();
 
     for cmd in cmds {
         cmd.compile(&mut script).unwrap();
