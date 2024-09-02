@@ -58,21 +58,36 @@ impl Command {
             shell_escape::escape(format!("Running: '{}'", self.cmd).into())
         )?;
 
+        writeln!(
+            w,
+            indoc!(
+            r#"
+            check_and_output_long_running_output() {{
+                if [[ -n "$BASHTESTMD_LONG_RUNNING_OUTPUT" && -f "$BASHTESTMD_LONG_RUNNING_OUTPUT" ]]; then
+                    echo "Output of the long running task:"
+                    cat "$BASHTESTMD_LONG_RUNNING_OUTPUT"
+                fi
+            }}
+            "#
+            ))?;
+
         if self.long_running {
             if let Some(wait_until) = &self.wait_until {
                 writeln!(
                     w,
                     indoc!(
                         r#"
-                        output=$(mktemp)
-                        {} &> $output &
+                        long_running_output=$(mktemp)
+                        export BASHTESTMD_LONG_RUNNING_OUTPUT=$long_running_output
+                        {} &> $long_running_output &
                         background_process_pid=$!
                         echo "Waiting for process with PID: $background_process_pid"
                         until grep -q -i {} $output
                         do       
                           if ! ps $background_process_pid > /dev/null 
                           then
-                            echo "The background process died died" >&2
+                            echo "The background process died, output:" >&2
+                            cat $long_running_output
                             exit 1
                           fi
                           echo -n "."
@@ -104,6 +119,7 @@ impl Command {
                     if ! [[ $output == *"$expected"* || $expected == *"$output"* ]]; then
                         echo "'$expected' not found in text:"
                         echo "'$output'"
+                        check_and_output_long_running_output
                         exit 1
                     fi
                     "#
@@ -122,6 +138,7 @@ impl Command {
                     r#"
                     if [ $? -ne {0} ]; then
                         echo "Expected exit code {0}, got $?"
+                        check_and_output_long_running_output
                         exit 1
                     fi
                     "#,
