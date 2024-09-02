@@ -65,19 +65,22 @@ impl Command {
                     indoc!(
                         r#"
                         output=$(mktemp)
+                        export BASHTESTMD_LONG_RUNNING_OUTPUT=$output
                         {} &> $output &
                         background_process_pid=$!
-                        echo "Waiting for process with PID: $background_process_pid"
+                        echo "Waiting for process with PID: $background_process_pid to have a match in $output"
                         until grep -q -i {} $output
                         do       
                           if ! ps $background_process_pid > /dev/null 
                           then
-                            echo "The background process died died" >&2
+                            echo "The background process died, output:" >&2
+                            cat $output
                             exit 1
                           fi
                           echo -n "."
                           sleep 5
                         done
+                        echo ""
                         "#
                     ),
                     self.cmd,
@@ -104,6 +107,8 @@ impl Command {
                     if ! [[ $output == *"$expected"* || $expected == *"$output"* ]]; then
                         echo "'$expected' not found in text:"
                         echo "'$output'"
+                        check_and_output_long_running_output
+                        echo "=========== END OF THE LONG RUNNING OUTPUT. Terminating..."
                         exit 1
                     fi
                     "#
@@ -122,6 +127,7 @@ impl Command {
                     r#"
                     if [ $? -ne {0} ]; then
                         echo "Expected exit code {0}, got $?"
+                        check_and_output_long_running_output
                         exit 1
                     fi
                     "#,
@@ -139,6 +145,19 @@ fn compile_commands_into_bash(cmds: Vec<Command>) -> String {
     // Shebang.
     writeln!(&mut script, "#!/usr/bin/env bash").unwrap();
     writeln!(&mut script, r#"trap 'jobs -p | xargs -r kill' EXIT"#).unwrap();
+    writeln!(
+        &mut script,
+        indoc!(
+        r#"
+        check_and_output_long_running_output() {{
+            if [[ -n "$BASHTESTMD_LONG_RUNNING_OUTPUT" && -f "$BASHTESTMD_LONG_RUNNING_OUTPUT" ]]; then
+                echo "Output of the long running task:"
+                cat "$BASHTESTMD_LONG_RUNNING_OUTPUT"
+            fi
+        }}
+        "#
+        )
+    ).unwrap();
 
     for cmd in cmds {
         cmd.compile(&mut script).unwrap();
