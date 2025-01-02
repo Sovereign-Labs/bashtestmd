@@ -101,6 +101,7 @@ impl Command {
                 indoc!(
                     r#"
                     output=$({})
+                    exit_code=$?
                     expected={}
                     # Either of the two must be a substring of the other. This kinda protects us
                     # against whitespace differences, trimming, etc.
@@ -121,18 +122,25 @@ impl Command {
         }
 
         if let Some(exit_code) = self.exit_code {
+            // expected_output does recording of proper exit code:
+            let exit_code_grabber = if self.expected_output.is_none() {
+                "exit_code=$?\n"
+            } else {
+                "\n"
+            };
             writeln!(
                 w,
                 indoc!(
                     r#"
-                    if [ $? -ne {0} ]; then
-                        echo "Expected exit code {0}, got $?"
+                    {1}
+                    if [ $exit_code -ne {0} ]; then
+                        echo "Expected exit code {0}, got $exit_code"
                         check_and_output_long_running_output
                         exit 1
                     fi
                     "#,
                 ),
-                exit_code
+                exit_code, exit_code_grabber,
             )?;
         }
 
