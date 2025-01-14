@@ -77,7 +77,7 @@ rm: this_file_does_not_exist.txt: No such file or directory
 The tag `bashtestmd:long-running` causes the command to run in the background and waits 120 seconds for the task to complete.
 It is strongly recommended to combine `long-running` with `wait-until` in order to override this default behavior.
 
-For example, the following commmand compiles to `cargo run &; sleep 120`
+For example, the following command compiles to `cargo run &; sleep 120`
 
 ````
 ```sh,test-ci,bashtestmd:long-running`
