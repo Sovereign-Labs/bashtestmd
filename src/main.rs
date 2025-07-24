@@ -70,8 +70,8 @@ impl Command {
                         background_process_pid=$!
                         echo "Waiting for process with PID: $background_process_pid to have a match in $output"
                         until grep -q -i {} $output
-                        do       
-                          if ! ps $background_process_pid > /dev/null 
+                        do
+                          if ! ps $background_process_pid > /dev/null
                           then
                             echo "The background process died, output:" >&2
                             cat $output
@@ -152,6 +152,10 @@ fn compile_commands_into_bash(cmds: Vec<Command>) -> String {
     let mut script = Vec::<u8>::new();
     // Shebang.
     writeln!(&mut script, "#!/usr/bin/env bash").unwrap();
+    // allow aliases in scripts. ideally we would execute bash in interactive mode (`-i`)
+    // to make the script run closer to how user runs commands from readme, but flags in
+    // shebang aren't cross platfrom
+    writeln!(&mut script, "shopt -sq expand_aliases").unwrap();
     writeln!(&mut script, r#"trap 'jobs -p | xargs -r kill' EXIT"#).unwrap();
     writeln!(
         &mut script,
@@ -179,6 +183,7 @@ struct CodeBlockTags {
     compare_output: bool,
     exit_code: Option<i32>,
     wait_until: Option<String>,
+    raw: bool,
 }
 
 impl CodeBlockTags {
@@ -196,6 +201,7 @@ impl CodeBlockTags {
             compare_output: false,
             exit_code: Some(0),
             wait_until: None,
+            raw: false,
         };
 
         for (idx, lang) in langs.into_iter().enumerate() {
@@ -205,6 +211,8 @@ impl CodeBlockTags {
                 tags.compare_output = true;
             } else if lang == "bashtestmd:exit-code-ignore" {
                 tags.exit_code = None;
+            } else if lang == "bashtestmd:raw" {
+                tags.raw = true;
             } else if lang.starts_with("bashtestmd:exit-code=") {
                 let exit_code = lang.split_once('=').unwrap().1.parse().unwrap();
                 tags.exit_code = Some(exit_code);
@@ -218,6 +226,13 @@ impl CodeBlockTags {
                     println!("Unknown bashtestmd tag, ignoring: {}", lang);
                 }
             }
+        }
+
+        if tags.raw && tags.compare_output {
+            eprintln!(
+                "Tags `bashtestmd:raw` and `bashtestmd:compare-output` are mutually exclusive"
+            );
+            std::process::exit(1);
         }
 
         tags
@@ -254,6 +269,11 @@ fn convert_code_blocks_into_commands(
                 }
                 cmd = Some(cmd_string.to_string());
                 block_contains_command = true;
+            } else if tags.raw {
+                if let Some(cmd) = cmd.as_mut() {
+                    cmd.push('\n');
+                    cmd.push_str(line);
+                }
             } else {
                 output.push_str(line);
                 output.push('\n');
