@@ -223,7 +223,7 @@ impl CodeBlockTags {
                 // Don't warn on the first `lang` tag of if the tag is the one marking blocks for bashtestmd to compile
                 // This ensures that (i.e. ```rust,test-ci```) should not generate warnings.
                 if idx != 0 && lang != only_tag {
-                    println!("Unknown bashtestmd tag, ignoring: {}", lang);
+                    println!("Unknown bashtestmd tag, ignoring: {lang}");
                 }
             }
         }
