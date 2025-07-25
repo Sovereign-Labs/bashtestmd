@@ -1,6 +1,6 @@
 [package]
 name = "bashtestmd"
-version = "0.5.0"
+version = "0.5.1"
 description = "Compiles shell commands in .md files into Bash scripts for testing"
 edition = "2021"
 authors = ["Sovereign Labs <info@sovereign.xyz>"]
