@@ -41,6 +41,7 @@ This is a demo
 1. `bashtestmd:exit-code="{EXPECTED_CODE}"`
 1. `bashtestmd:long-running`
 1. `bashtestmd:wait-until="{TEXT}"`
+1. `bashtestmd:raw`
 
 ### Compare Output
 
@@ -93,6 +94,65 @@ before continuing rather than simply sleeping for two minutes. Note that this co
 ````
 ```sh,test-ci,bashtestmd:long-running,bashtestmd:wait-until="Finished release"`
 $ cargo build --release
+```
+````
+
+### Raw
+
+The tag `bashtestmd:raw` will cause the command to be interpreted as whole text since the command start (`$`)
+until the new line with command start (`$`) is found. This tag is mutually exclusive with the `bashtestmd:compare-output`
+because the latter interprets all new lines after the command as its output.
+
+The main purpose of this tag is to allow for more complex / multiline bash structures, e.g. heredocs.
+
+````
+```sh,test-ci,bashtestmd:raw
+$ cat <<EOF > /usr/local/nginx/conf/nginx.conf
+server {
+    listen 8080;
+    root /data/up1;
+
+    location / {
+    }
+}
+EOF
+```
+````
+
+You can also use it to just improve readability if commands are long
+
+````
+```sh,test-ci,bashtestmd:raw
+$ curl -sS https://api.github.com/graphql \
+  -H "Accept: application/vnd.github+json" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+  --data '{"query": "mutation {
+    createCommitOnBranch(input: {
+      branch: { ... },
+      message: { ... },
+      ...
+    })
+    { commit { commitUrl } }
+  }"}'
+```
+````
+
+If you still want to compare the outputs of the command, try assigning the output to the variable and putting
+another code block that will do the comparison
+
+````
+```sh,test-ci,bashtestmd:raw
+$ balance="$(curl https://solana-mainnet.quiknode.pro/abcd1234567890/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["66BXLTdqdpgcu46Lgs3R52MibigRx4gsgXrRLN1RyQPo"]}' |
+  jq -r .result.value | # extract value from json. and yes, comments here are supported
+  tee /dev/fd/2)" # totally optional, with this user running command can still see the output without echoing
+```
+
+```sh,test-ci,bashtestmd:compare-output
+$ echo $balance
+5000
 ```
 ````
 
