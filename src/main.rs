@@ -58,6 +58,29 @@ impl Command {
             shell_escape::escape(format!("Running: '{}'", self.cmd).into())
         )?;
 
+        if let Some(exit_code) = self.exit_code {
+            // expected_output does recording of proper exit code:
+            let exit_code_grabber = if self.expected_output.is_none() {
+                "exit_code=$?\n"
+            } else {
+                "\n"
+            };
+            writeln!(
+                w,
+                indoc!(
+                    r#"
+                    {1}
+                    if [ $exit_code -ne {0} ]; then
+                        echo "Expected exit code {0}, got $exit_code"
+                        check_and_output_long_running_output
+                        exit 1
+                    fi
+                    "#,
+                ),
+                exit_code, exit_code_grabber,
+            )?;
+        }
+
         if self.long_running {
             if let Some(wait_until) = &self.wait_until {
                 writeln!(
@@ -119,29 +142,6 @@ impl Command {
             )?;
         } else {
             writeln!(w, "{}", self.cmd)?;
-        }
-
-        if let Some(exit_code) = self.exit_code {
-            // expected_output does recording of proper exit code:
-            let exit_code_grabber = if self.expected_output.is_none() {
-                "exit_code=$?\n"
-            } else {
-                "\n"
-            };
-            writeln!(
-                w,
-                indoc!(
-                    r#"
-                    {1}
-                    if [ $exit_code -ne {0} ]; then
-                        echo "Expected exit code {0}, got $exit_code"
-                        check_and_output_long_running_output
-                        exit 1
-                    fi
-                    "#,
-                ),
-                exit_code, exit_code_grabber,
-            )?;
         }
 
         Ok(())
